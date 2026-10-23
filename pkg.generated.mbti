@@ -10,6 +10,8 @@ pub fn checked_offset(UInt64, Int) -> UInt64 raise NfsError
 
 pub async fn connect_export(String, String, mount_port? : Int, nfs_port? : Int, options? : Options) -> Client
 
+pub fn path_components(String) -> Array[String] raise NfsError
+
 pub async fn service_port(String, UInt, UInt, options? : Options) -> Int
 
 pub async fn unmount_export(String, String, mount_port? : Int, options? : Options) -> Unit
@@ -40,8 +42,16 @@ pub(all) struct Attributes {
 pub struct Client {
   // private fields
 }
+pub async fn Client::access(Self, Handle, UInt) -> UInt
 pub fn Client::close(Self) -> Unit
+pub async fn Client::getattr(Self, Handle) -> Attributes
+pub async fn Client::lookup(Self, Handle, String) -> Handle
+pub async fn Client::negotiate(Self) -> Unit
+pub async fn Client::read_at(Self, Handle, UInt64, Int) -> ReadResult
+pub async fn Client::readlink(Self, Handle) -> Bytes
+pub async fn Client::resolve(Self, String) -> Handle
 pub fn Client::root_handle(Self) -> Handle
+pub async fn Client::stat(Self, String) -> Attributes
 
 pub(all) struct Handle {
   bytes : Bytes
@@ -58,6 +68,11 @@ pub(all) struct Options {
 }
 pub fn Options::default() -> Self
 pub fn Options::validate(Self) -> Unit raise NfsError
+
+pub(all) struct ReadResult {
+  data : Bytes
+  eof : Bool
+}
 
 pub struct Rpc {
   // private fields
