@@ -46,9 +46,11 @@ pub async fn Client::access(Self, Handle, UInt) -> UInt
 pub fn Client::close(Self) -> Unit
 pub async fn Client::commit(Self, Handle, UInt64, UInt) -> Bytes
 pub async fn Client::getattr(Self, Handle) -> Attributes
+pub async fn Client::list_dir(Self, String, plus? : Bool) -> Array[DirectoryEntry]
 pub async fn Client::lookup(Self, Handle, String) -> Handle
 pub async fn Client::negotiate(Self) -> Unit
 pub async fn Client::read_at(Self, Handle, UInt64, Int) -> ReadResult
+pub async fn Client::read_directory(Self, Handle, cookie? : UInt64, verifier? : Bytes, plus? : Bool) -> DirectoryPage
 pub async fn Client::readlink(Self, Handle) -> Bytes
 pub async fn Client::resolve(Self, String) -> Handle
 pub fn Client::root_handle(Self) -> Handle
@@ -56,6 +58,20 @@ pub async fn Client::stat(Self, String) -> Attributes
 pub async fn Client::write_all(Self, Handle, UInt64, Bytes) -> Unit
 pub async fn Client::write_at(Self, Handle, UInt64, Bytes, stability? : Stability) -> WriteResult
 pub async fn Client::write_committed(Self, Handle, UInt64, Bytes, retries? : Int) -> Unit
+
+pub(all) struct DirectoryEntry {
+  fileid : UInt64
+  name : Bytes
+  cookie : UInt64
+  attributes : Attributes?
+  handle : Handle?
+}
+
+pub(all) struct DirectoryPage {
+  entries : Array[DirectoryEntry]
+  verifier : Bytes
+  eof : Bool
+}
 
 pub(all) struct Handle {
   bytes : Bytes
