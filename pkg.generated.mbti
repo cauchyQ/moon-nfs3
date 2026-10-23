@@ -14,6 +14,23 @@ pub suberror NfsError {
 }
 
 // Types and methods
+pub(all) struct Attributes {
+  kind : UInt
+  mode : UInt
+  links : UInt
+  uid : UInt
+  gid : UInt
+  size : UInt64
+  used : UInt64
+  fsid : UInt64
+  fileid : UInt64
+  modified_seconds : UInt
+}
+
+pub(all) struct Handle {
+  bytes : Bytes
+}
+
 pub(all) struct Options {
   uid : UInt
   gid : UInt
