@@ -1,0 +1,6 @@
+import {
+  "kekeshuo/moonxdr" @xdr,
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
+}

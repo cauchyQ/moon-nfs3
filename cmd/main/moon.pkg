@@ -1,0 +1,5 @@
+// import {
+//   "cauchyQ/moon-nfs3" @lib,
+// }
+
+pkgtype(kind: "executable")

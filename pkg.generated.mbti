@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cauchyQ/moon-nfs3"
+
+// Values
+pub fn checked_offset(UInt64, Int) -> UInt64 raise NfsError
+
+// Errors
+pub suberror NfsError {
+  InvalidArgument(String)
+  ProtocolError(String)
+  RpcFailure(String)
+  Status(UInt)
+  OutcomeUnknown(String)
+}
+
+// Types and methods
+pub(all) struct Options {
+  uid : UInt
+  gid : UInt
+  groups : Array[UInt]
+  timeout_ms : Int
+  block_size : Int
+  max_record : Int
+  max_entries : Int
+}
+pub fn Options::default() -> Self
+pub fn Options::validate(Self) -> Unit raise NfsError
+
+// Type aliases
+
+// Traits
