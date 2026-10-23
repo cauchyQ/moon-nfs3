@@ -29,7 +29,7 @@ pub async fn Client::read_directory(
   put_handle(w, directory)
   w.write_uhyper(cookie)
   w.write_fixed(verifier.to_array())
-  let budget = (self.options.max_record - 4096).to_uint()
+  let budget = (self.options.max_record - 4096).reinterpret_as_uint()
   w.write_uint(if plus { budget / 2U } else { budget })
   if plus {
     w.write_uint(budget)
@@ -67,7 +67,7 @@ pub async fn Client::list_dir(
 ) -> Array[DirectoryEntry] {
   let handle = self.resolve(path)
   let result : Array[DirectoryEntry] = []
-  let seen : Map[UInt64, Bool] = {}
+  let seen : Map[UInt64, Bool] = Map([])
   let mut cookie = 0UL
   let mut verifier = b"\x00\x00\x00\x00\x00\x00\x00\x00"
   while true {

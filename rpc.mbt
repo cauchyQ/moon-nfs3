@@ -84,7 +84,7 @@ pub async fn Rpc::call(
       let mr = @xdr.Reader::new(marker.to_array())
       let word = mr.read_uint()
       let size = word & 0x7fffffffU
-      if size > self.options.max_record.to_uint() {
+      if size > self.options.max_record.reinterpret_as_uint() {
         raise ProtocolError("RPC fragment exceeds budget")
       }
       let headers = decoder.feed(marker.to_array())
@@ -101,14 +101,7 @@ pub async fn Rpc::call(
       raise ProtocolError("incomplete RPC record")
     }
   }) catch {
-    error => {
-      if modifying {
-        raise OutcomeUnknown(
-          "RPC connection failed after mutation may have been sent: \{error}",
-        )
-      }
-      raise error
-    }
+    error => raise transport_error(error, modifying)
   }
   let response = @xdr.decode_reply(reply_bytes, limits=limits(self.options))
   if response.xid != xid {
@@ -125,6 +118,15 @@ pub async fn Rpc::call(
       raise RpcFailure(
         "RPC rejected program, procedure, arguments or credentials",
       )
+  }
+}
+
+///|
+fn transport_error(error : Error, modifying : Bool) -> Error {
+  if modifying {
+    OutcomeUnknown("mutation RPC transport failed: \{error}")
+  } else {
+    error
   }
 }
 

@@ -30,7 +30,7 @@ pub async fn Client::lookup(
 pub fn path_components(path : String) -> Array[String] raise NfsError {
   let result : Array[String] = []
   for part in path.split("/") {
-    let name = part.to_string()
+    let name = part.to_owned()
     if name == ".." || name.contains("\u{0000}") {
       raise InvalidArgument("parent traversal or NUL in path")
     }
@@ -76,12 +76,12 @@ pub async fn Client::negotiate(self : Client) -> Unit {
   if rtmax == 0U || wtmax == 0U {
     raise ProtocolError("zero FSINFO transfer maximum")
   }
-  self.read_size = if rtmax < self.options.block_size.to_uint() {
+  self.read_size = if rtmax < self.options.block_size.reinterpret_as_uint() {
     rtmax.reinterpret_as_int()
   } else {
     self.options.block_size
   }
-  self.write_size = if wtmax < self.options.block_size.to_uint() {
+  self.write_size = if wtmax < self.options.block_size.reinterpret_as_uint() {
     wtmax.reinterpret_as_int()
   } else {
     self.options.block_size
@@ -108,14 +108,14 @@ pub async fn Client::read_at(
   let w = @xdr.Writer::new()
   put_handle(w, handle)
   w.write_uhyper(offset)
-  w.write_uint(count.to_uint())
+  w.write_uint(count.reinterpret_as_uint())
   let r = self.invoke(6U, w)
   ignore(post_attributes(r))
   let reported = r.read_uint()
   let eof = r.read_bool()
-  let data = Bytes::from_array(r.read_opaque(bound=count.to_uint()))
+  let data = Bytes::from_array(r.read_opaque(bound=count.reinterpret_as_uint()))
   r.finish()
-  if reported != data.length().to_uint() ||
+  if reported != data.length().reinterpret_as_uint() ||
     (count > 0 && data.length() == 0 && !eof) {
     raise ProtocolError("invalid READ length or zero progress")
   }

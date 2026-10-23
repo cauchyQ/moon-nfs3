@@ -36,7 +36,7 @@ pub async fn Client::write_at(
   let w = @xdr.Writer::new(limits=limits(self.options))
   put_handle(w, handle)
   w.write_uhyper(offset)
-  w.write_uint(data.length().to_uint())
+  w.write_uint(data.length().reinterpret_as_uint())
   w.write_uint(stability.wire())
   w.write_opaque(data.to_array())
   let r = self.invoke(7U, w, modifying=true)
@@ -45,7 +45,7 @@ pub async fn Client::write_at(
   let level = r.read_uint()
   let verifier = Bytes::from_array(r.read_fixed(8))
   r.finish()
-  if count > data.length().to_uint() ||
+  if count > data.length().reinterpret_as_uint() ||
     (count == 0U && data.length() > 0) ||
     level > 2U ||
     level < stability.wire() {
@@ -153,7 +153,11 @@ pub async fn Client::write_committed(
       position += part.count
     }
     if !changed {
-      let confirmed = self.commit(handle, offset, data.length().to_uint())
+      let confirmed = self.commit(
+        handle,
+        offset,
+        data.length().reinterpret_as_uint(),
+      )
       if verifier is Some(v) && v == confirmed {
         return
       }
