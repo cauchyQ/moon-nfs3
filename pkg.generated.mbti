@@ -3,6 +3,7 @@ package "cauchyQ/moon-nfs3"
 
 import {
   "kekeshuo/moonxdr",
+  "moonbitlang/async/io",
 }
 
 // Values
@@ -46,6 +47,8 @@ pub async fn Client::access(Self, Handle, UInt) -> UInt
 pub fn Client::close(Self) -> Unit
 pub async fn Client::commit(Self, Handle, UInt64, UInt) -> Bytes
 pub async fn Client::create_file(Self, String, mode? : UInt, verifier? : Bytes?) -> Handle
+pub async fn Client::download(Self, String, String) -> UInt64
+pub async fn[W : @io.Writer] Client::download_to(Self, String, W) -> UInt64
 pub async fn Client::getattr(Self, Handle) -> Attributes
 pub async fn Client::list_dir(Self, String, plus? : Bool) -> Array[DirectoryEntry]
 pub async fn Client::lookup(Self, Handle, String) -> Handle
@@ -60,6 +63,8 @@ pub async fn Client::resolve(Self, String) -> Handle
 pub fn Client::root_handle(Self) -> Handle
 pub async fn Client::setattr(Self, Handle, mode? : UInt?, size? : UInt64?) -> Unit
 pub async fn Client::stat(Self, String) -> Attributes
+pub async fn Client::upload(Self, String, String, committed? : Bool) -> UInt64
+pub async fn[R : @io.Reader] Client::upload_from(Self, String, R, committed? : Bool) -> UInt64
 pub async fn Client::write_all(Self, Handle, UInt64, Bytes) -> Unit
 pub async fn Client::write_at(Self, Handle, UInt64, Bytes, stability? : Stability) -> WriteResult
 pub async fn Client::write_committed(Self, Handle, UInt64, Bytes, retries? : Int) -> Unit

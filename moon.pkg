@@ -2,5 +2,7 @@ import {
   "kekeshuo/moonxdr" @xdr,
   "moonbitlang/async",
   "moonbitlang/async/socket",
+  "moonbitlang/async/io",
+  "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
 }
