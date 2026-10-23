@@ -8,6 +8,12 @@ import {
 // Values
 pub fn checked_offset(UInt64, Int) -> UInt64 raise NfsError
 
+pub async fn connect_export(String, String, mount_port? : Int, nfs_port? : Int, options? : Options) -> Client
+
+pub async fn service_port(String, UInt, UInt, options? : Options) -> Int
+
+pub async fn unmount_export(String, String, mount_port? : Int, options? : Options) -> Unit
+
 // Errors
 pub suberror NfsError {
   InvalidArgument(String)
@@ -30,6 +36,12 @@ pub(all) struct Attributes {
   fileid : UInt64
   modified_seconds : UInt
 }
+
+pub struct Client {
+  // private fields
+}
+pub fn Client::close(Self) -> Unit
+pub fn Client::root_handle(Self) -> Handle
 
 pub(all) struct Handle {
   bytes : Bytes
