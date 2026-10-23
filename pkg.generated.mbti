@@ -45,15 +45,20 @@ pub struct Client {
 pub async fn Client::access(Self, Handle, UInt) -> UInt
 pub fn Client::close(Self) -> Unit
 pub async fn Client::commit(Self, Handle, UInt64, UInt) -> Bytes
+pub async fn Client::create_file(Self, String, mode? : UInt, verifier? : Bytes?) -> Handle
 pub async fn Client::getattr(Self, Handle) -> Attributes
 pub async fn Client::list_dir(Self, String, plus? : Bool) -> Array[DirectoryEntry]
 pub async fn Client::lookup(Self, Handle, String) -> Handle
+pub async fn Client::mkdir(Self, String, mode? : UInt) -> Handle
 pub async fn Client::negotiate(Self) -> Unit
 pub async fn Client::read_at(Self, Handle, UInt64, Int) -> ReadResult
 pub async fn Client::read_directory(Self, Handle, cookie? : UInt64, verifier? : Bytes, plus? : Bool) -> DirectoryPage
 pub async fn Client::readlink(Self, Handle) -> Bytes
+pub async fn Client::remove(Self, String, directory? : Bool) -> Unit
+pub async fn Client::rename(Self, String, String) -> Unit
 pub async fn Client::resolve(Self, String) -> Handle
 pub fn Client::root_handle(Self) -> Handle
+pub async fn Client::setattr(Self, Handle, mode? : UInt?, size? : UInt64?) -> Unit
 pub async fn Client::stat(Self, String) -> Attributes
 pub async fn Client::write_all(Self, Handle, UInt64, Bytes) -> Unit
 pub async fn Client::write_at(Self, Handle, UInt64, Bytes, stability? : Stability) -> WriteResult
