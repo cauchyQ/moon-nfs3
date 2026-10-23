@@ -1,7 +1,13 @@
 ///|
 fn env_number(name : String, fallback : Int) -> Int raise {
   match @env.get_env_var(name) {
-    Some(value) => @string.parse_int(value)
+    Some(value) => {
+      let number = @string.parse_int(value)
+      if number < 0 {
+        fail("\{name} must be nonnegative")
+      }
+      number
+    }
     None => fallback
   }
 }
@@ -17,10 +23,10 @@ async fn verify(client : @nfs.Client) -> Unit {
   assert_eq(client.getattr(h).size, 150007UL)
   let mut position = 0
   while position < payload.length() {
-    let count = if payload.length() - position < 16384 {
+    let count = if payload.length() - position < 4096 {
       payload.length() - position
     } else {
-      16384
+      4096
     }
     let part = client.read_at(h, position.to_uint64(), count)
     let end = position + part.data.length()
@@ -31,6 +37,20 @@ async fn verify(client : @nfs.Client) -> Unit {
   assert_eq(client.read_at(h, 2UL, 10).data, b"\x00committed")
   assert_true(client.list_dir(dir).length() >= 1)
   assert_true(client.list_dir(dir, plus=false).length() >= 1)
+  let names = Array::makei(40, i => {
+    "f-\{i}-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz"
+  })
+  for name in names {
+    ignore(client.create_file(dir + "/" + name))
+  }
+  assert_false(client.read_directory(client.resolve(dir)).eof)
+  let entries = client.list_dir(dir)
+  for name in names {
+    assert_true(entries.any(entry => entry.name == @utf8.encode(name)))
+  }
+  for name in names {
+    client.remove(dir + "/" + name)
+  }
   client.rename(path, dir + "/renamed")
   let moved = client.resolve(dir + "/renamed")
   client.setattr(moved, size=Some(4UL))
@@ -70,6 +90,22 @@ fn main {
         ..@nfs.Options::default(),
         uid: env_number("NFS_UID", 65534).reinterpret_as_uint(),
         gid: env_number("NFS_GID", 65534).reinterpret_as_uint(),
+        block_size: env_number(
+          "NFS_BLOCK_SIZE",
+          if command == "verify" {
+            4096
+          } else {
+            65536
+          },
+        ),
+        max_record: env_number(
+          "NFS_MAX_RECORD",
+          if command == "verify" {
+            8192
+          } else {
+            1048576
+          },
+        ),
       }
       let client = @nfs.connect_export(
         args[2],
@@ -79,7 +115,6 @@ fn main {
         options~,
       )
       defer client.close()
-      client.negotiate()
       match command {
         "ls" =>
           for entry in client.list_dir(path) {

@@ -76,13 +76,16 @@ pub async fn connect_export(
     raise RpcFailure("export does not advertise AUTH_SYS")
   }
   let rpc = Rpc::connect(host, np, options~)
-  {
+  let client : Client = {
     rpc,
     root,
     options,
     read_size: options.block_size,
     write_size: options.block_size,
   }
+  errdefer client.close()
+  client.negotiate()
+  client
 }
 
 ///|

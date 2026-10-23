@@ -67,7 +67,15 @@ pub async fn Rpc::call(
     limits=limits(self.options),
   )
   let framed = Bytes::from_array(
-    @xdr.fragment_record(payload, 65536, limits=limits(self.options)),
+    @xdr.fragment_record(
+      payload,
+      if self.options.max_record < 65536 {
+        self.options.max_record
+      } else {
+        65536
+      },
+      limits=limits(self.options),
+    ),
   )
   self.busy = true
   defer {
