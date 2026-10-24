@@ -28,7 +28,8 @@ It tests binary I/O, write verifiers, COMMIT, READDIR/PLUS, attributes,
 rename, truncate and removal. The Python runner also checks empty and
 400,128-byte local files, SHA-256 equality, missing-file errors without creating
 local destinations, and rejection
-of existing upload/download destinations. Portmapper discovery is tested in
+of existing upload/download destinations. Directory upload sources and download
+sources are rejected before creating their destinations. Portmapper discovery is tested in
 a second run.
 
 Windows/WSL local result (2026-10-24): both explicit-port and discovery runs

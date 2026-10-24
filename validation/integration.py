@@ -41,6 +41,11 @@ def main():
         absent_destination = local / "missing.out"
         cli("get", prefix + "/missing", absent_destination, succeeds=False)
         assert not absent_destination.exists(), "missing remote source created a local file"
+        directory_destination = local / "directory.out"
+        cli("get", prefix, directory_destination, succeeds=False)
+        assert not directory_destination.exists(), "remote directory created a local file"
+        cli("put", local, prefix + "/invalid-upload", succeeds=False)
+        cli("stat", prefix + "/invalid-upload", succeeds=False)
         for name, payload in [("empty", b""), ("binary", bytes(range(256)) * 1563)]:
             source, dest = local / name, local / (name + ".out")
             source.write_bytes(payload)

@@ -35,8 +35,8 @@ pub async fn[W : @io.Writer] Client::download_to(
   path : String,
   sink : W,
 ) -> UInt64 {
-  let handle = self.resolve(path)
-  if self.getattr(handle).kind != 1U {
+  let (handle, attributes) = self.resolve_attributes(path)
+  if attributes.kind != 1U {
     raise InvalidArgument("download requires a regular file")
   }
   self.download_handle(handle, sink)
@@ -70,6 +70,9 @@ pub async fn Client::upload(
 ) -> UInt64 {
   let file = @fs.open(local_path, mode=ReadOnly)
   defer file.close()
+  if file.kind() != @fs.Regular {
+    raise InvalidArgument("upload requires a regular local file")
+  }
   self.upload_from(remote_path, file, committed~)
 }
 
@@ -82,8 +85,8 @@ pub async fn Client::download(
 ) -> UInt64 {
   // Validate the source before creating a local destination. Reuse the handle
   // so preflight does not add a second path lookup to the transfer.
-  let handle = self.resolve(remote_path)
-  if self.getattr(handle).kind != 1U {
+  let (handle, attributes) = self.resolve_attributes(remote_path)
+  if attributes.kind != 1U {
     raise InvalidArgument("download requires a regular file")
   }
   let file = @fs.open(local_path, mode=WriteOnly, create_mode=CreateNew)

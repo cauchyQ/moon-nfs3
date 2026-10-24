@@ -14,15 +14,25 @@ pub async fn Client::lookup(
   directory : Handle,
   name : String,
 ) -> Handle {
+  let (handle, _) = self.lookup_attributes(directory, name)
+  handle
+}
+
+///|
+async fn Client::lookup_attributes(
+  self : Client,
+  directory : Handle,
+  name : String,
+) -> (Handle, Attributes?) {
   let w = @xdr.Writer::new()
   put_handle(w, directory)
   put_name(w, name)
   let r = self.invoke(3U, w)
   let handle = get_handle(r)
-  ignore(post_attributes(r))
+  let attributes = post_attributes(r)
   ignore(post_attributes(r))
   r.finish()
-  handle
+  (handle, attributes)
 }
 
 ///|
@@ -52,7 +62,28 @@ pub async fn Client::resolve(self : Client, path : String) -> Handle {
 
 ///|
 pub async fn Client::stat(self : Client, path : String) -> Attributes {
-  self.getattr(self.resolve(path))
+  let (_, attributes) = self.resolve_attributes(path)
+  attributes
+}
+
+///|
+async fn Client::resolve_attributes(
+  self : Client,
+  path : String,
+) -> (Handle, Attributes) {
+  let mut handle = self.root_handle()
+  let mut attributes : Attributes? = None
+  for name in path_components(path) {
+    let (next, current_attributes) = self.lookup_attributes(handle, name)
+    handle = next
+    attributes = current_attributes
+  }
+  // LOOKUP attributes describe only that reply, and are never cached.
+  let attributes = match attributes {
+    Some(value) => value
+    None => self.getattr(handle)
+  }
+  (handle, attributes)
 }
 
 ///|

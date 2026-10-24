@@ -44,7 +44,8 @@ moon run cmd/main -- space server.example /shared
 
 `get` creates a fresh local file; `put` creates a fresh remote file.
 An existing destination fails instead of being overwritten. Downloads check
-the remote source before creating a local file. A transfer that
+the remote source before creating a local file. Local uploads require an opened
+regular file before creating the remote destination. A transfer that
 fails part-way can leave a partial destination. Upload/download are streams,
 not snapshots of concurrently modified files. `mv` uses the server's RENAME
 semantics, which may replace an existing destination.
@@ -104,6 +105,10 @@ up to `Options.max_entries`. Raw directory names and link targets are `Bytes`;
 high-level paths are UTF-8 strings. Parent traversal is rejected and symbolic
 links are not implicitly followed. Client path handling is not a replacement
 for server-side export permissions.
+
+`stat` and downloads reuse attributes returned by the final LOOKUP, avoiding
+an extra GETATTR call when the server supplies them. Missing attributes and
+export-root paths fall back to GETATTR. Attributes are not cached across calls.
 
 ## Correctness rules
 

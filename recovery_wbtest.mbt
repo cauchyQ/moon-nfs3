@@ -1,4 +1,96 @@
 ///|
+fn metadata_reply(
+  request : @xdr.RpcCall,
+  include_attributes : Bool,
+  kind : UInt,
+  size : UInt64,
+) -> @xdr.RpcReply? raise {
+  let w = @xdr.Writer::new()
+  w.write_uint(0U)
+  if request.procedure == 3U {
+    put_handle(w, { bytes: b"file", })
+    w.write_bool(include_attributes)
+  } else {
+    assert_eq(request.procedure, 1U)
+  }
+  if include_attributes {
+    w.write_uint(kind)
+    for value in [420U, 1U, 65534U, 65534U] {
+      w.write_uint(value) // mode, links, uid, gid
+    }
+    w.write_uhyper(size)
+    w.write_uhyper(size)
+    w.write_uint(0U)
+    w.write_uint(0U) // device numbers
+    w.write_uhyper(1UL)
+    w.write_uhyper(2UL) // filesystem and file IDs
+    for _ in 0..<6 {
+      w.write_uint(0U) // seconds and nanoseconds for three timestamps
+    }
+  }
+  if request.procedure == 3U {
+    w.write_bool(false) // parent attributes
+  }
+  ok_reply(request, w)
+}
+
+///|
+async test "stat uses final LOOKUP attributes without an extra RPC" {
+  with_fake(
+    1,
+    request => {
+      assert_eq(request.procedure, 3U)
+      metadata_reply(request, true, 1U, 42UL)
+    },
+    client => assert_eq(client.stat("file").size, 42UL),
+  )
+}
+
+///|
+async test "missing final LOOKUP attributes fall back to GETATTR, not parent data" {
+  let mut calls = 0
+  with_fake(
+    3,
+    request => {
+      calls += 1
+      assert_eq(request.procedure, if calls < 3 { 3U } else { 1U })
+      metadata_reply(
+        request,
+        calls != 2,
+        if calls == 1 {
+          2U
+        } else {
+          1U
+        },
+        if calls == 1 {
+          11UL
+        } else {
+          42UL
+        },
+      )
+    },
+    client => {
+      let attributes = client.stat("directory/file")
+      assert_eq(attributes.kind, 1U)
+      assert_eq(attributes.size, 42UL)
+    },
+  )
+  assert_eq(calls, 3)
+}
+
+///|
+async test "stat of the export root still uses GETATTR" {
+  with_fake(
+    1,
+    request => {
+      assert_eq(request.procedure, 1U)
+      metadata_reply(request, true, 2U, 11UL)
+    },
+    client => assert_eq(client.stat("/").kind, 2U),
+  )
+}
+
+///|
 async test "stable write window skips COMMIT across server boot changes" {
   let mut calls = 0
   with_fake(
