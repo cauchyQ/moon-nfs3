@@ -111,8 +111,8 @@ pub async fn Client::write_all(
 }
 
 ///|
-/// Writes one bounded replay window, then verifies COMMIT. Never drops its data
-/// until verifier agreement; server restart recovery has a finite retry budget.
+/// Writes one bounded replay window, verifying COMMIT for pending data or metadata.
+/// Retains the data until durability is confirmed; recovery has a finite retry budget.
 pub async fn Client::write_committed(
   self : Client,
   handle : Handle,
@@ -131,6 +131,7 @@ pub async fn Client::write_committed(
     let mut position = 0
     let mut verifier : Bytes? = None
     let mut changed = false
+    let mut needs_commit = false
     while position < data.length() {
       let end = if data.length() - position < self.write_size {
         data.length()
@@ -143,14 +144,23 @@ pub async fn Client::write_committed(
         data[position:end].to_owned(),
         stability=Unstable,
       )
-      match verifier {
-        Some(old) if old != part.verifier => {
-          changed = true
-          break
+      // Only pending data depends on the server's boot verifier.
+      if !(part.committed is FileSync) {
+        needs_commit = true
+      }
+      if needs_commit {
+        match verifier {
+          Some(old) if old != part.verifier => {
+            changed = true
+            break
+          }
+          _ => verifier = Some(part.verifier)
         }
-        _ => verifier = Some(part.verifier)
       }
       position += part.count
+    }
+    if !changed && !needs_commit {
+      return
     }
     if !changed {
       let confirmed = self.commit(

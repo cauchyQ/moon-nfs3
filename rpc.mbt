@@ -111,7 +111,19 @@ pub async fn Rpc::call(
   }) catch {
     error => raise transport_error(error, modifying)
   }
-  let response = @xdr.decode_reply(reply_bytes, limits=limits(self.options))
+  decode_rpc_response(reply_bytes, xid, self.options) catch {
+    RpcFailure(reason) => raise RpcFailure(reason)
+    error => raise transport_error(error, modifying)
+  }
+}
+
+///|
+fn decode_rpc_response(
+  bytes : Array[Byte],
+  xid : UInt,
+  options : Options,
+) -> @xdr.Reader raise {
+  let response = @xdr.decode_reply(bytes, limits=limits(options))
   if response.xid != xid {
     raise ProtocolError("RPC response XID mismatch")
   }
@@ -120,7 +132,7 @@ pub async fn Rpc::call(
       if auth.flavor != 0U || auth.body.length() != 0 {
         raise ProtocolError("unexpected RPC reply verifier")
       }
-      @xdr.Reader::new(bytes, limits=limits(self.options))
+      @xdr.Reader::new(bytes, limits=limits(options))
     }
     _ =>
       raise RpcFailure(
@@ -132,7 +144,7 @@ pub async fn Rpc::call(
 ///|
 fn transport_error(error : Error, modifying : Bool) -> Error {
   if modifying {
-    OutcomeUnknown("mutation RPC transport failed: \{error}")
+    OutcomeUnknown("mutation RPC response could not be confirmed: \{error}")
   } else {
     error
   }

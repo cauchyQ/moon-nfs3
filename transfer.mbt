@@ -39,6 +39,15 @@ pub async fn[W : @io.Writer] Client::download_to(
   if self.getattr(handle).kind != 1U {
     raise InvalidArgument("download requires a regular file")
   }
+  self.download_handle(handle, sink)
+}
+
+///|
+async fn[W : @io.Writer] Client::download_handle(
+  self : Client,
+  handle : Handle,
+  sink : W,
+) -> UInt64 {
   let mut offset = 0UL
   while true {
     let result = self.read_at(handle, offset, self.read_size)
@@ -71,9 +80,15 @@ pub async fn Client::download(
   remote_path : String,
   local_path : String,
 ) -> UInt64 {
+  // Validate the source before creating a local destination. Reuse the handle
+  // so preflight does not add a second path lookup to the transfer.
+  let handle = self.resolve(remote_path)
+  if self.getattr(handle).kind != 1U {
+    raise InvalidArgument("download requires a regular file")
+  }
   let file = @fs.open(local_path, mode=WriteOnly, create_mode=CreateNew)
   defer file.close()
-  let size = self.download_to(remote_path, file)
+  let size = self.download_handle(handle, file)
   file.sync()
   size
 }

@@ -43,7 +43,8 @@ moon run cmd/main -- space server.example /shared
 ```
 
 `get` creates a fresh local file; `put` creates a fresh remote file.
-An existing destination fails instead of being overwritten. A transfer that
+An existing destination fails instead of being overwritten. Downloads check
+the remote source before creating a local file. A transfer that
 fails part-way can leave a partial destination. Upload/download are streams,
 not snapshots of concurrently modified files. `mv` uses the server's RENAME
 semantics, which may replace an existing destination.
@@ -111,12 +112,14 @@ for server-side export permissions.
   inconsistent lengths and 64-bit offset overflow are errors.
 - `write_at` and `write_all` default to FILE_SYNC and reject a weaker reply.
   `write_committed` retains one bounded data window, submits UNSTABLE writes,
-  and verifies COMMIT. A changed boot verifier replays that window within a
+  and verifies COMMIT when data or metadata remains uncommitted. If every
+  write is already confirmed FILE_SYNC, the extra COMMIT call is skipped.
+  A changed boot verifier for pending data replays that window within a
   finite retry budget. It does not promise protection against concurrent writers.
-- Directory cookies are opaque. Stale cookies and repeated pagination cursors
+- Directory cookies are opaque. Stale cookies, changed verifiers and repeated pagination cursors
   are surfaced as errors; traversal is not silently restarted.
 - Invalid RPC framing, wrong XIDs and transport failures close the connection.
-  A mutation with a lost transport reply raises `OutcomeUnknown`; it is not
+  A mutation with a lost or invalid RPC reply raises `OutcomeUnknown`; it is not
   blindly retried. The operation may already have executed on the server.
 - `create_file` is GUARDED by default. An explicit eight-byte verifier selects
   EXCLUSIVE creation and is followed by SETATTR as required by the protocol.

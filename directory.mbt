@@ -72,6 +72,9 @@ pub async fn Client::list_dir(
   let mut verifier = b"\x00\x00\x00\x00\x00\x00\x00\x00"
   while true {
     let page = self.read_directory(handle, cookie~, verifier~, plus~)
+    if cookie != 0UL && page.verifier != verifier {
+      raise ProtocolError("directory verifier changed during traversal")
+    }
     if page.entries.length() > self.options.max_entries - result.length() {
       raise ProtocolError("directory traversal exceeds entry budget")
     }

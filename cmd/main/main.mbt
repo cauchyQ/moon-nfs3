@@ -34,6 +34,7 @@ async fn verify(client : @nfs.Client) -> Unit {
     position = end
   }
   client.write_committed(h, 2UL, b"\x00committed")
+  assert_eq(client.commit(h, 2UL, 10U).length(), 8)
   assert_eq(client.read_at(h, 2UL, 10).data, b"\x00committed")
   assert_true(client.list_dir(dir).length() >= 1)
   assert_true(client.list_dir(dir, plus=false).length() >= 1)

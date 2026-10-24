@@ -38,6 +38,9 @@ def main():
     cli("mkdir", prefix)
     with tempfile.TemporaryDirectory(prefix="moonnfs3-") as folder:
         local = Path(folder)
+        absent_destination = local / "missing.out"
+        cli("get", prefix + "/missing", absent_destination, succeeds=False)
+        assert not absent_destination.exists(), "missing remote source created a local file"
         for name, payload in [("empty", b""), ("binary", bytes(range(256)) * 1563)]:
             source, dest = local / name, local / (name + ".out")
             source.write_bytes(payload)
