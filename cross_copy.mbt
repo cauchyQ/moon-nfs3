@@ -72,33 +72,17 @@ async fn Client::verify_remote_prefix(
   destination : Handle,
   length : UInt64,
 ) -> Unit {
-  let mut offset = 0UL
-  let block = if self.read_size < other.read_size {
-    self.read_size
-  } else {
-    other.read_size
+  let result = self.compare_handles(
+    source,
+    other,
+    destination,
+    length=Some(length),
+  )
+  if !result.equal {
+    raise InvalidArgument("remote resume prefix does not match source")
   }
-  while offset < length {
-    let remaining = length - offset
-    let count = if remaining < block.to_uint64() {
-      remaining.to_int()
-    } else {
-      block
-    }
-    let first = self.read_at(source, offset, count)
-    let second = other.read_at(destination, offset, count)
-    let common = if first.data.length() < second.data.length() {
-      first.data.length()
-    } else {
-      second.data.length()
-    }
-    if common == 0 {
-      raise ProtocolError("file shrank during prefix verification")
-    }
-    if first.data[0:common] != second.data[0:common] {
-      raise InvalidArgument("remote resume prefix does not match source")
-    }
-    offset = checked_offset(offset, common)
+  if result.compared_bytes != length {
+    raise ProtocolError("file shrank during prefix verification")
   }
 }
 

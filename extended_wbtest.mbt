@@ -4,6 +4,7 @@ fn test_attributes(
   kind : UInt,
   fileid : UInt64,
   size : UInt64,
+  modified_seconds? : UInt = 0U,
 ) -> Unit raise {
   w.write_uint(kind)
   for value in [420U, 1U, 65534U, 65534U] {
@@ -15,8 +16,8 @@ fn test_attributes(
   w.write_uint(0U)
   w.write_uhyper(1UL)
   w.write_uhyper(fileid)
-  for _ in 0..<6 {
-    w.write_uint(0U)
+  for i in 0..<6 {
+    w.write_uint(if i == 2 { modified_seconds } else { 0U })
   }
 }
 

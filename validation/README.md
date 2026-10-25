@@ -40,7 +40,7 @@ paths against the external server:
   remote and cross-client tree copies, mode comparison and recursive removal.
 - Read-only throughput measurement with a byte budget and version checks.
 
-Windows/WSL local VFS result (2026-10-24): explicit-port and discovery runs passed
+Windows/WSL local VFS result (2026-10-25): explicit-port and discovery runs passed
 against NFS-Ganesha 4.3. Compiler `v0.10.14+7d59c7ec9`, async `0.22.1`, moonxdr `0.2.0`.
 
 Payload SHA-256 values:
@@ -58,6 +58,10 @@ Synthetic TCP peer tests complement server interop: short I/O, offsets above 4 G
 changed boot verifiers, lost/malformed mutation replies, XID mismatch, stale
 cookies, cursor loops, overlap direction and traversal budgets. This is fault
 injection, not another implementation claimed as a production server.
+Additional regressions check asymmetric short-read buffering, exact prefix bounds,
+equal early EOF, metadata changes before resume append and an upload with a one-byte
+READ maximum. In the four-byte short-read fixture, comparison needs five READ RPCs
+instead of refetching the larger input for each byte; each input byte is fetched once.
 
 Physical power-loss durability, large sparse files, independent NAS products,
 cross-product migration, block/character device creation on real servers, memory

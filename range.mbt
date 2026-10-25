@@ -151,51 +151,7 @@ pub async fn Client::compare_files(
   if aa.kind != 1U || ba.kind != 1U {
     raise InvalidArgument("comparison requires regular files")
   }
-  let mut offset = 0UL
-  while true {
-    let first = self.read_at(a, offset, self.read_size)
-    let second = self.read_at(b, offset, self.read_size)
-    // Short replies are legal, so compare only the shared prefix.
-    let common = if first.data.length() < second.data.length() {
-      first.data.length()
-    } else {
-      second.data.length()
-    }
-    for i in 0..<common {
-      if first.data[i] != second.data[i] {
-        let difference = checked_offset(offset, i)
-        return {
-          equal: false,
-          compared_bytes: difference + 1UL,
-          first_difference: Some(difference),
-        }
-      }
-    }
-    offset = checked_offset(offset, common)
-    if common == 0 {
-      let equal = first.eof &&
-        second.eof &&
-        first.data.length() == 0 &&
-        second.data.length() == 0
-      return {
-        equal,
-        compared_bytes: offset,
-        first_difference: if equal {
-          None
-        } else {
-          Some(offset)
-        },
-      }
-    }
-    if first.eof &&
-      second.eof &&
-      first.data.length() == common &&
-      second.data.length() == common {
-      return { equal: true, compared_bytes: offset, first_difference: None, }
-    }
-  } nobreak {
-    raise ProtocolError("incomplete file comparison")
-  }
+  self.compare_handles(a, self, b)
 }
 
 ///|
@@ -243,7 +199,9 @@ pub async fn Client::resume_download(
   remote_path : String,
   local_path : String,
 ) -> UInt64 {
-  let (handle, attributes) = self.resolve_attributes(remote_path)
+  let handle = self.resolve(remote_path)
+  let before = self.metadata(handle)
+  let attributes = before.attributes
   if attributes.kind != 1U {
     raise InvalidArgument("resume requires a regular source")
   }
@@ -254,12 +212,24 @@ pub async fn Client::resume_download(
     raise InvalidArgument("resume requires a regular local file")
   }
   let size = file.size()
+  let modified = file.mtime()
+  let changed = file.ctime()
   if size < 0L || size.reinterpret_as_uint64() > attributes.size {
     raise InvalidArgument("local file is larger than remote source")
   }
   let prefix = size.reinterpret_as_uint64()
   let mut offset = 0UL
+  let mut appending = false
   while offset < attributes.size {
+    if offset >= prefix && !appending {
+      self.require_version(handle, before.version())
+      if file.size() != size ||
+        file.mtime() != modified ||
+        file.ctime() != changed {
+        raise ProtocolError("local prefix changed before resume append")
+      }
+      appending = true
+    }
     let remaining = if offset < prefix {
       prefix - offset
     } else {
@@ -290,8 +260,12 @@ pub async fn Client::resume_download(
       raise ProtocolError("source shrank during resume")
     }
   }
+  self.require_version(handle, before.version())
   if file.size() != local_offset(attributes.size) {
     raise ProtocolError("local destination changed during resume")
+  }
+  if !appending && (file.mtime() != modified || file.ctime() != changed) {
+    raise ProtocolError("local prefix changed during resume verification")
   }
   file.sync()
   offset - prefix
@@ -313,22 +287,41 @@ pub async fn Client::resume_upload(
     raise InvalidArgument("invalid local size")
   }
   let size = signed_size.reinterpret_as_uint64()
-  let (handle, attributes) = self.resolve_attributes(remote_path)
+  let modified = file.mtime()
+  let changed = file.ctime()
+  let handle = self.resolve(remote_path)
+  let before = self.metadata(handle)
+  let attributes = before.attributes
   if attributes.kind != 1U || attributes.size > size {
     raise InvalidArgument("invalid remote resume destination")
   }
   let prefix = attributes.size
   let mut offset = 0UL
+  let mut appending = false
   while offset < size {
+    if offset >= prefix && !appending {
+      if file.size() != signed_size ||
+        file.mtime() != modified ||
+        file.ctime() != changed {
+        raise ProtocolError("local source changed before resume append")
+      }
+      self.require_version(handle, before.version())
+      appending = true
+    }
     let remaining = if offset < prefix {
       prefix - offset
     } else {
       size - offset
     }
-    let count = if remaining < self.read_size.to_uint64() {
+    let block = if offset < prefix {
+      self.read_size
+    } else {
+      self.options.block_size
+    }
+    let count = if remaining < block.to_uint64() {
       remaining.to_int()
     } else {
-      self.read_size
+      block
     }
     let bytes = file.read_exactly_at(count, position=local_offset(offset))
     if offset < prefix {
@@ -343,8 +336,17 @@ pub async fn Client::resume_upload(
       offset = checked_offset(offset, bytes.length())
     }
   }
-  if self.getattr(handle).size != size || file.size() != signed_size {
-    raise ProtocolError("file size changed during resume")
+  if file.size() != signed_size ||
+    file.mtime() != modified ||
+    file.ctime() != changed {
+    raise ProtocolError("file changed during resume")
+  }
+  if appending {
+    if self.getattr(handle).size != size {
+      raise ProtocolError("remote destination changed during resume")
+    }
+  } else {
+    self.require_version(handle, before.version())
   }
   offset - prefix
 }

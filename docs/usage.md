@@ -79,6 +79,15 @@ including hard-link aliases. `read_exactly_at` accumulates short replies and
 reports early EOF. Resume methods require existing regular destinations, compare
 every prefix byte before appending and reject an oversized or mismatched prefix.
 They do not silently restart or replace an existing file.
+Before the first append they recheck the remote version and local timestamps;
+downloads also recheck the source version after transfer. These checks detect
+changes visible in the metadata and do not provide locking or a snapshot.
+Upload tails use the upload buffer budget independently of the server's READ
+maximum. An already complete upload uses one final remote version query.
+
+File comparison and cross-client prefix verification retain unread data from
+larger replies when the other input returns short reads. They keep at most one
+read block per input and do not refetch the retained bytes.
 
 ## Atomic publication
 
