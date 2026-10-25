@@ -70,89 +70,26 @@ async fn verify(client : @nfs.Client) -> Unit {
 fn main {
   let args = @env.args()
   if args.length() < 2 || args[1] == "--help" {
-    println(
-      "MoonNFS3: <ls|stat|get|put|mkdir|mv|rm|rmdir|space|verify> HOST EXPORT [PATH] [DEST]",
-    )
-    println(
-      "Ports: NFS_MOUNT_PORT / NFS_PORT (0 = discovery); NFS_UID / NFS_GID default to 65534",
-    )
-    println(
-      "get: PATH remote, DEST local; put: PATH local, DEST remote; no overwrite",
-    )
-    println("verify creates and removes a unique test directory in the export")
+    print_help()
   } else {
     @async.run_async_main(() => {
-      if args.length() < 4 {
-        fail("expected command HOST EXPORT; see --help")
-      }
-      let command = args[1]
-      let path = if args.length() > 4 { args[4] } else { "/" }
-      let options = @nfs.Options::{
-        ..@nfs.Options::default(),
-        uid: env_number("NFS_UID", 65534).reinterpret_as_uint(),
-        gid: env_number("NFS_GID", 65534).reinterpret_as_uint(),
-        block_size: env_number(
-          "NFS_BLOCK_SIZE",
-          if command == "verify" {
-            4096
-          } else {
-            65536
-          },
-        ),
-        max_record: env_number(
-          "NFS_MAX_RECORD",
-          if command == "verify" {
-            8192
-          } else {
-            1048576
-          },
-        ),
+      let request = parse_request(args)
+      let small = request.command == "verify"
+      let options = cli_options(small)
+      let mount_port = env_number("NFS_MOUNT_PORT", 0)
+      if service_command(request.command) {
+        run_services(request, options, mount_port)
+        return
       }
       let client = @nfs.connect_export(
-        args[2],
-        args[3],
-        mount_port=env_number("NFS_MOUNT_PORT", 0),
+        request.host,
+        request.export_path,
+        mount_port~,
         nfs_port=env_number("NFS_PORT", 0),
         options~,
       )
       defer client.close()
-      match command {
-        "ls" =>
-          for entry in client.list_dir(path) {
-            println(@utf8.decode_lossy(entry.name))
-          }
-        "stat" => {
-          let attrs = client.stat(path)
-          println(
-            "kind=\{attrs.kind} size=\{attrs.size} mode=\{attrs.mode} uid=\{attrs.uid} gid=\{attrs.gid}",
-          )
-        }
-        "space" => {
-          let value = client.space()
-          println(
-            "total=\{value.total_bytes} free=\{value.free_bytes} available=\{value.available_bytes}",
-          )
-        }
-        "mkdir" => {
-          ignore(client.mkdir(path))
-          println("created")
-        }
-        "rm" => client.remove(path)
-        "rmdir" => client.remove(path, directory=true)
-        "verify" => verify(client)
-        "get" | "put" | "mv" => {
-          if args.length() != 6 {
-            fail("expected PATH DEST")
-          }
-          match command {
-            "get" =>
-              println("downloaded \{client.download(path, args[5])} bytes")
-            "put" => println("uploaded \{client.upload(path, args[5])} bytes")
-            _ => client.rename(path, args[5])
-          }
-        }
-        _ => fail("unknown command; see --help")
-      }
+      run_command(client, request)
     })
   }
 }
