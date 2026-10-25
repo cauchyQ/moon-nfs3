@@ -10,12 +10,13 @@ from pathlib import Path
 import subprocess
 import tempfile
 import uuid
+from extended_checks import extended_checks
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--export", default="/moonnfs3")
+    parser.add_argument("--export", default="/var/tmp/moonnfs3-vfs")
     parser.add_argument("--discovery", action="store_true")
     args = parser.parse_args()
     env = os.environ.copy()
@@ -24,9 +25,12 @@ def main():
                NFS_PORT="0" if args.discovery else "20490")
 
     def cli(command, *paths, succeeds=True):
+        invocation = ["moon", "run", "cmd/main", "--target", "wasm", "--", command, args.host]
+        if command not in {"exports", "mounts", "services"}:
+            invocation.append(args.export)
+        invocation.extend(map(str, paths))
         run = subprocess.run(
-            ["moon", "run", "cmd/main", "--target", "wasm", "--",
-             command, args.host, args.export, *map(str, paths)],
+            invocation,
             env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
         )
         if (run.returncode == 0) != succeeds:
@@ -61,7 +65,8 @@ def main():
             print(f"PASS: {name}, {len(payload)} bytes, SHA256={digest}, overwrite guards")
             cli("rm", remote)
         cli("stat", prefix + "/missing", succeeds=False)
-    cli("rmdir", prefix)
+        extended_checks(cli, local, prefix, args.host, args.export)
+    cli("rm-tree", prefix)
     print("PASS: external-server CLI integration; test directory removed")
 
 

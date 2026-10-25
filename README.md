@@ -3,6 +3,8 @@
 Access an NFSv3 export from a MoonBit program over TCP, without mounting it
 in the operating system. The library supports file and directory operations,
 streaming transfers, stable writes and verifier-checked COMMIT recovery.
+It also includes bounded directory traversal, tree transfer, prefix-checked
+resume, atomic file publication and cross-connection copies.
 
 This repository implements the connection and NFS client. It uses
 [`kekeshuo/moonxdr@0.2.0`](https://github.com/kekeshuo/moonxdr) for XDR and RPC
@@ -64,6 +66,10 @@ The following environment variables configure the CLI:
 | `NFS_MOUNT_PORT` | 0 | MOUNTv3 TCP port; 0 discovers it |
 | `NFS_BLOCK_SIZE` | 65536 | Client transfer-buffer budget |
 | `NFS_MAX_RECORD` | 1048576 | RPC/XDR record budget |
+| `NFS_TIMEOUT_MS` | 10000 | Timeout per RPC |
+| `NFS_MAX_ENTRIES` | 100000 | Directory and tree collection budget |
+| `NFS_DEST_PORT`, `NFS_DEST_MOUNT_PORT` | Source port settings | Destination connection for cross-client copies |
+| `NFS_DEST_UID`, `NFS_DEST_GID` | Source identity | AUTH_SYS identity on the destination connection |
 
 `verify` uses smaller default budgets (4096/8192) to force block boundaries
 and directory pagination. It creates, checks and deletes a uniquely named
@@ -93,12 +99,17 @@ bookkeeping if required.
 
 | Operation | Methods |
 | --- | --- |
-| Inspect | `stat`, `getattr`, `access`, `readlink`, `space`, `pathconf`, `ping` |
-| Find | `root_handle`, `lookup`, `resolve` |
-| Read | `read_at`, `download_to`, `download` |
-| Write | `write_at`, `write_all`, `commit`, `write_committed`, `upload_from`, `upload` |
-| Manage | `create_file`, `mkdir`, `setattr`, `rename`, `remove` |
-| Directory | `read_directory`, `list_dir` |
+| Inspect | `stat`, `getattr`, `metadata`, `access`, `readlink`, `space`, `fsinfo`, `pathconf`, `health_check`, `ping` |
+| Find | `root_handle`, `lookup`, `resolve`, `canonical_path`, `resolve_following`, `exists` |
+| Read | `read_at`, `read_exactly_at`, `read_bytes`, `read_text`, `download_to`, `download`, `download_range`, `open_reader` |
+| Write | `write_at`, `write_all`, `commit`, `write_committed`, `write_bytes`, `write_text`, `upload_from`, `upload`, `upload_range`, `open_writer` |
+| Manage | `create_file`, `mkdir`, `ensure_directory`, `setattr`, `set_attributes`, `chmod`, `chown`, `truncate`, `touch`, `rename`, `remove`, `symlink`, `hard_link`, `mknod` |
+| Directory | `read_directory`, `list_dir`, `scan_directory`, `open_directory`, `walk`, `collect_tree`, `disk_usage` |
+| Transfer | `copy_file`, `copy_file_checked`, `copy_range`, `copy_tree`, `upload_tree`, `download_tree`, `resume_upload`, `resume_download` |
+| Publication | `upload_atomic`, `download_atomic`, `copy_atomic` |
+| Cross-client | `copy_file_to`, `copy_tree_to`, `resume_copy_to` |
+| Verify | `compare_files`, `compare_trees`, `verify_local_file`, `verify_local_tree`, `benchmark_read`, `statistics` |
+| Raw names | `lookup_bytes`, `create_entry`, `remove_entry`, `rename_entry` |
 
 `read_directory` allows incremental consumption; `list_dir` collects entries
 up to `Options.max_entries`. Raw directory names and link targets are `Bytes`;
@@ -124,14 +135,17 @@ export-root paths fall back to GETATTR. Attributes are not cached across calls.
 - Directory cookies are opaque. Stale cookies, changed verifiers and repeated pagination cursors
   are surfaced as errors; traversal is not silently restarted.
 - Invalid RPC framing, wrong XIDs and transport failures close the connection.
-  A mutation with a lost or invalid RPC reply raises `OutcomeUnknown`; it is not
+  A mutation with a lost or undecodable RPC/NFS reply raises `OutcomeUnknown`; it is not
   blindly retried. The operation may already have executed on the server.
 - `create_file` is GUARDED by default. An explicit eight-byte verifier selects
   EXCLUSIVE creation and is followed by SETATTR as required by the protocol.
 
-This scope covers NFSv3/TCP and AUTH_SYS. NFSv4, UDP, Kerberos/RPCSEC_GSS,
-NLM locking, kernel mounts, special-node creation and link creation are outside
+This scope covers NFSv3 procedure numbers 0 through 21 over TCP with AUTH_SYS.
+NFSv4, UDP, Kerberos/RPCSEC_GSS, NLM locking and kernel mounts are outside
 this version. Server status values are preserved in `NfsError::Status`.
+Special node creation and optional filesystem features still depend on server
+support and export permissions. See [advanced usage and boundaries](docs/usage.md)
+for tree transfers, resume, atomic publication, cross-client copies and I/O adapters.
 
 ## Verification
 
@@ -142,6 +156,7 @@ moon test --deny-warn
 moon info
 moon fmt
 git diff --exit-code
+python validation/source_lines.py --min-implementation 4000
 ```
 
 Fault tests use an independent synthetic TCP peer to test short I/O,
@@ -149,13 +164,21 @@ Fault tests use an independent synthetic TCP peer to test short I/O,
 stale directory cookies and pagination loops. The synthetic peer is a test
 fixture, not a production NFS server.
 
-Real interoperability runs against NFS-Ganesha 4.3's MEM backend passed locally
-on Windows/WSL, using explicit ports and portmapper discovery. They include
+The complete integration suite runs against NFS-Ganesha 4.3's VFS backend on
+a real local filesystem, using explicit ports and portmapper discovery. It includes
 binary and empty-file round trips, SHA-256 comparison, multi-page directories,
-attributes, COMMIT, rename, truncate, cleanup and overwrite guards.
+attributes, timestamps, links, FIFO creation, COMMIT, rename, truncate, cleanup,
+overwrite guards, overlapping range copies, resumed transfers, atomic publication
+and tree/cross-client round trips.
 See [validation instructions and evidence](validation/README.md). CI repeats
-the external-server checks. MEM stores data in RAM: physical durability,
-large sparse files, other NAS products and performance have not been validated.
+the external-server checks. Physical power-loss durability, large sparse files,
+other NAS products and comparative performance have not been validated.
+
+`validation/source_lines.py` reports implementation and tests separately. Its
+implementation count excludes blank/comment lines, dependencies, generated
+interfaces, test files, inline test blocks and the CLI `verify` self-check.
+The source-count check in CI preserves the requested 4,000-line implementation
+milestone; line count does not substitute for behavior checks.
 
 ## References and provenance
 

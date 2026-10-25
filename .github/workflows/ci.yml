@@ -20,6 +20,8 @@ jobs:
       - run: moon check --target ${{ matrix.target }} --deny-warn
       - run: moon build --target ${{ matrix.target }} --deny-warn
       - run: moon test --target ${{ matrix.target }} --deny-warn
+      - name: Implementation source count
+        run: python validation/source_lines.py --min-implementation 4000
       - run: moon run cmd/main --target ${{ matrix.target }} -- --help
       - name: Generated interfaces and formatting
         run: |
@@ -30,11 +32,11 @@ jobs:
         if: matrix.target == 'wasm'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y nfs-ganesha nfs-ganesha-mem rpcbind
+          sudo apt-get install -y nfs-ganesha nfs-ganesha-vfs rpcbind
           sudo systemctl stop nfs-ganesha
           sudo systemctl start rpcbind
-          sudo mkdir -p /run/ganesha
-          sudo ganesha.nfsd -f "$PWD/validation/ganesha.conf" -L "$RUNNER_TEMP/ganesha.log" -p "$RUNNER_TEMP/moonnfs3.pid"
+          sudo mkdir -p /run/ganesha /var/tmp/moonnfs3-vfs
+          sudo ganesha.nfsd -f "$PWD/validation/ganesha-vfs.conf" -L "$RUNNER_TEMP/ganesha.log" -p "$RUNNER_TEMP/moonnfs3.pid"
           python - <<'PY'
           import socket, time
           for attempt in range(50):
