@@ -12,8 +12,10 @@ pub async fn[R : @io.Reader] Client::upload_from(
     match source.read_some(max_len=self.options.block_size) {
       None => return offset
       Some(bytes) => {
-        if bytes.length() == 0 {
-          raise ProtocolError("source made no progress")
+        if bytes.length() == 0 || bytes.length() > self.options.block_size {
+          raise ProtocolError(
+            "source returned an invalid transfer chunk length",
+          )
         }
         if committed {
           self.write_committed(handle, offset, bytes)

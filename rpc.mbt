@@ -6,6 +6,7 @@ pub struct Rpc {
   priv mut xid : UInt
   priv mut busy : Bool
   priv mut closed : Bool
+  priv counters : RpcCounters
 }
 
 ///|
@@ -28,7 +29,21 @@ pub async fn Rpc::connect(
   let tcp = @async.with_timeout(options.timeout_ms, () => {
     @socket.Tcp::connect_to_host(host, port~)
   })
-  { tcp, options, credential, xid: 0U, busy: false, closed: false, }
+  {
+    tcp,
+    options,
+    credential,
+    xid: 0U,
+    busy: false,
+    closed: false,
+    counters: {
+      calls: 0UL,
+      replies: 0UL,
+      request_bytes: 0UL,
+      response_bytes: 0UL,
+      failures: 0UL,
+    },
+  }
 }
 
 ///|
@@ -81,8 +96,13 @@ pub async fn Rpc::call(
   defer {
     self.busy = false
   }
-  errdefer self.close()
+  errdefer {
+    self.counters.failures += 1UL
+    self.close()
+  }
   self.xid = xid
+  self.counters.calls += 1UL
+  self.counters.request_bytes += payload.length().to_uint64()
   let reply_bytes = @async.with_timeout(self.options.timeout_ms, () => {
     self.tcp.write(framed)
     let decoder = @xdr.RecordDecoder::new(limits=limits(self.options))
@@ -111,6 +131,8 @@ pub async fn Rpc::call(
   }) catch {
     error => raise transport_error(error, modifying)
   }
+  self.counters.replies += 1UL
+  self.counters.response_bytes += reply_bytes.length().to_uint64()
   decode_rpc_response(reply_bytes, xid, self.options) catch {
     RpcFailure(reason) => raise RpcFailure(reason)
     error => raise transport_error(error, modifying)

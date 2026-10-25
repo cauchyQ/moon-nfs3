@@ -14,6 +14,11 @@ pub(all) struct Attributes {
 
 ///|
 fn read_attributes(r : @xdr.Reader) -> Attributes raise {
+  read_metadata(r).attributes
+}
+
+///|
+fn read_metadata(r : @xdr.Reader) -> Metadata raise {
   let kind = r.read_uint()
   if kind < 1U || kind > 7U {
     raise ProtocolError("invalid file type")
@@ -24,14 +29,32 @@ fn read_attributes(r : @xdr.Reader) -> Attributes raise {
   let gid = r.read_uint()
   let size = r.read_uhyper()
   let used = r.read_uhyper()
-  ignore(r.read_uint()) // device major
-  ignore(r.read_uint()) // device minor
+  let device_major = r.read_uint()
+  let device_minor = r.read_uint()
   let fsid = r.read_uhyper()
   let fileid = r.read_uhyper()
-  ignore(read_time(r))
-  let modified_seconds = read_time(r)
-  ignore(read_time(r))
-  { kind, mode, links, uid, gid, size, used, fsid, fileid, modified_seconds, }
+  let accessed = read_timestamp(r)
+  let modified = read_timestamp(r)
+  let changed = read_timestamp(r)
+  {
+    attributes: {
+      kind,
+      mode,
+      links,
+      uid,
+      gid,
+      size,
+      used,
+      fsid,
+      fileid,
+      modified_seconds: modified.seconds,
+    },
+    device_major,
+    device_minor,
+    accessed,
+    modified,
+    changed,
+  }
 }
 
 ///|
@@ -95,16 +118,7 @@ fn get_handle(r : @xdr.Reader) -> Handle raise {
 
 ///|
 fn put_name(w : @xdr.Writer, name : String) -> Unit raise {
-  let bytes = @utf8.encode(name)
-  if bytes.length() == 0 ||
-    bytes.length() > 255 ||
-    name.contains("/") ||
-    name.contains("\u{0000}") ||
-    name == "." ||
-    name == ".." {
-    raise InvalidArgument("invalid single filename")
-  }
-  w.write_opaque(bytes.to_array(), bound=255U)
+  put_raw_name(w, @utf8.encode(name))
 }
 
 ///|

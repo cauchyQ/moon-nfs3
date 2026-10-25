@@ -8,6 +8,25 @@ pub suberror NfsError {
 }
 
 ///|
+pub fn NfsError::message(self : NfsError) -> String {
+  match self {
+    InvalidArgument(reason) => "invalid argument: " + reason
+    ProtocolError(reason) => "invalid NFS/RPC response: " + reason
+    RpcFailure(reason) => "RPC failure: " + reason
+    Status(code) => "NFS status \{status_name(code)} (\{code})"
+    OutcomeUnknown(reason) => "operation outcome unknown: " + reason
+  }
+}
+
+///|
+pub extend NfsError with Show::{to_string, output}
+
+///|
+pub impl Show for NfsError with fn output(self, logger) {
+  logger.write_string(self.message())
+}
+
+///|
 /// TCP connections are sequential: one outstanding RPC per connection.
 pub(all) struct Options {
   uid : UInt

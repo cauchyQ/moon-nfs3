@@ -11,9 +11,27 @@ pub fn checked_offset(UInt64, Int) -> UInt64 raise NfsError
 
 pub async fn connect_export(String, String, mount_port? : Int, nfs_port? : Int, options? : Options) -> Client
 
+pub fn file_kind_name(UInt) -> String
+
+pub fn join_path(String, String) -> String raise NfsError
+
+pub async fn list_exports(String, mount_port? : Int, options? : Options) -> Array[Export]
+
+pub async fn list_mounts(String, mount_port? : Int, options? : Options) -> Array[MountEntry]
+
+pub async fn list_services(String, options? : Options) -> Array[ServiceMapping]
+
+pub fn normalize_path(String) -> String raise NfsError
+
 pub fn path_components(String) -> Array[String] raise NfsError
 
+pub fn permission_string(UInt, UInt) -> String
+
+pub fn relative_path(String, String) -> String raise NfsError
+
 pub async fn service_port(String, UInt, UInt, options? : Options) -> Int
+
+pub fn status_name(UInt) -> String
 
 pub async fn unmount_export(String, String, mount_port? : Int, options? : Options) -> Unit
 
@@ -25,8 +43,23 @@ pub suberror NfsError {
   Status(UInt)
   OutcomeUnknown(String)
 }
+pub fn NfsError::message(Self) -> String
+pub fn NfsError::output(Self, &Logger) -> Unit
+pub fn NfsError::to_string(Self) -> String
+pub impl Show for NfsError
 
 // Types and methods
+pub(all) struct AttributeUpdate {
+  mode : UInt?
+  uid : UInt?
+  gid : UInt?
+  size : UInt64?
+  accessed : TimeUpdate
+  modified : TimeUpdate
+}
+pub fn AttributeUpdate::default() -> Self
+pub fn AttributeUpdate::validate(Self) -> Unit raise
+
 pub(all) struct Attributes {
   kind : UInt
   mode : UInt
@@ -44,33 +77,95 @@ pub struct Client {
   // private fields
 }
 pub async fn Client::access(Self, Handle, UInt) -> UInt
+pub async fn Client::benchmark_read(Self, String, rounds? : Int, max_bytes? : UInt64) -> ReadBenchmark
+pub async fn Client::canonical_path(Self, String, max_links? : Int) -> String
+pub async fn Client::chmod(Self, String, UInt) -> Unit
+pub async fn Client::chown(Self, String, UInt?, UInt?) -> Unit
 pub fn Client::close(Self) -> Unit
+pub async fn Client::collect_tree(Self, String, max_depth? : Int, max_nodes? : Int) -> Array[TreeEntry]
 pub async fn Client::commit(Self, Handle, UInt64, UInt) -> Bytes
+pub async fn Client::compare_files(Self, String, String) -> FileComparison
+pub async fn Client::compare_trees(Self, String, String, compare_mode? : Bool) -> Array[TreeDifference]
+pub async fn Client::copy_atomic(Self, String, String, String, replace? : Bool) -> UInt64
+pub async fn Client::copy_file(Self, String, String, preserve_mode? : Bool) -> UInt64
+pub async fn Client::copy_file_checked(Self, String, String) -> UInt64
+pub async fn Client::copy_file_to(Self, Self, String, String, preserve_mode? : Bool) -> UInt64
+pub async fn Client::copy_range(Self, Handle, Handle, UInt64, UInt64, UInt64) -> UInt64
+pub async fn Client::copy_tree(Self, String, String, preserve_mode? : Bool) -> TreeTransfer
+pub async fn Client::copy_tree_to(Self, Self, String, String, preserve_mode? : Bool) -> TreeTransfer
+pub async fn Client::create_entry(Self, Handle, Bytes, mode? : UInt, directory? : Bool) -> Handle
 pub async fn Client::create_file(Self, String, mode? : UInt, verifier? : Bytes?) -> Handle
+pub async fn Client::disk_usage(Self, String) -> DiskUsage
 pub async fn Client::download(Self, String, String) -> UInt64
+pub async fn Client::download_atomic(Self, String, String, String) -> UInt64
+pub async fn[W : @io.Writer] Client::download_range(Self, Handle, W, UInt64, UInt64) -> UInt64
 pub async fn[W : @io.Writer] Client::download_to(Self, String, W) -> UInt64
+pub async fn Client::download_tree(Self, String, String) -> TreeTransfer
+pub async fn Client::ensure_directory(Self, String, mode? : UInt) -> Handle
+pub async fn Client::exists(Self, String) -> Bool
+pub async fn Client::fsinfo(Self, handle? : Handle?) -> FileSystemInfo
 pub async fn Client::getattr(Self, Handle) -> Attributes
+pub async fn Client::hard_link(Self, String, String) -> Unit
+pub async fn Client::health_check(Self, path? : String) -> HealthReport
 pub async fn Client::list_dir(Self, String, plus? : Bool) -> Array[DirectoryEntry]
 pub async fn Client::lookup(Self, Handle, String) -> Handle
+pub async fn Client::lookup_bytes(Self, Handle, Bytes) -> Handle
+pub async fn Client::metadata(Self, Handle) -> Metadata
 pub async fn Client::mkdir(Self, String, mode? : UInt) -> Handle
+pub async fn Client::mknod(Self, String, SpecialNode, mode? : UInt) -> Handle
 pub async fn Client::negotiate(Self) -> Unit
+pub async fn Client::open_directory(Self, String, plus? : Bool) -> DirectoryCursor
+pub async fn Client::open_reader(Self, String, offset? : UInt64, length? : UInt64?) -> @io.MemoryReader
+pub async fn Client::open_writer(Self, String, mode? : UInt) -> RemoteWriter
 pub async fn Client::pathconf(Self, handle? : Handle?) -> PathConfig
 pub async fn Client::ping(Self) -> Unit
 pub async fn Client::read_at(Self, Handle, UInt64, Int) -> ReadResult
+pub async fn Client::read_bytes(Self, String, max_bytes? : Int) -> Bytes
 pub async fn Client::read_directory(Self, Handle, cookie? : UInt64, verifier? : Bytes, plus? : Bool) -> DirectoryPage
+pub async fn Client::read_exactly_at(Self, Handle, UInt64, Int) -> Bytes
+pub async fn Client::read_text(Self, String, max_bytes? : Int) -> String
 pub async fn Client::readlink(Self, Handle) -> Bytes
 pub async fn Client::remove(Self, String, directory? : Bool) -> Unit
+pub async fn Client::remove_entry(Self, Handle, Bytes, directory? : Bool) -> Unit
+pub async fn Client::remove_tree(Self, String) -> Int
 pub async fn Client::rename(Self, String, String) -> Unit
+pub async fn Client::rename_entry(Self, Handle, Bytes, Handle, Bytes) -> Unit
+pub async fn Client::require_version(Self, Handle, FileVersion) -> Unit
 pub async fn Client::resolve(Self, String) -> Handle
+pub async fn Client::resolve_following(Self, String, max_links? : Int) -> Handle
+pub async fn Client::resume_copy_to(Self, Self, String, String) -> UInt64
+pub async fn Client::resume_download(Self, String, String) -> UInt64
+pub async fn Client::resume_upload(Self, String, String) -> UInt64
 pub fn Client::root_handle(Self) -> Handle
+pub fn Client::scan_directory(Self, Handle, plus? : Bool) -> DirectoryCursor
+pub async fn Client::set_attributes(Self, Handle, AttributeUpdate, ctime_guard? : Timestamp?) -> Unit
 pub async fn Client::setattr(Self, Handle, mode? : UInt?, size? : UInt64?) -> Unit
 pub async fn Client::space(Self, handle? : Handle?) -> Space
 pub async fn Client::stat(Self, String) -> Attributes
+pub fn Client::statistics(Self) -> RpcStatistics
+pub async fn Client::symlink(Self, String, Bytes, mode? : UInt) -> Handle
+pub async fn Client::touch(Self, String) -> Unit
+pub async fn Client::truncate(Self, String, UInt64) -> Unit
 pub async fn Client::upload(Self, String, String, committed? : Bool) -> UInt64
+pub async fn Client::upload_atomic(Self, String, String, String, replace? : Bool, mode? : UInt) -> UInt64
 pub async fn[R : @io.Reader] Client::upload_from(Self, String, R, committed? : Bool) -> UInt64
+pub async fn[R : @io.Reader] Client::upload_range(Self, Handle, R, UInt64, UInt64, committed? : Bool) -> UInt64
+pub async fn Client::upload_tree(Self, String, String) -> TreeTransfer
+pub async fn Client::verify_local_file(Self, String, String) -> FileComparison
+pub async fn Client::verify_local_tree(Self, String, String) -> LocalTreeComparison
+pub async fn Client::walk(Self, String, max_depth? : Int, max_nodes? : Int) -> TreeWalker
 pub async fn Client::write_all(Self, Handle, UInt64, Bytes) -> Unit
 pub async fn Client::write_at(Self, Handle, UInt64, Bytes, stability? : Stability) -> WriteResult
+pub async fn Client::write_bytes(Self, String, Bytes, mode? : UInt) -> Handle
 pub async fn Client::write_committed(Self, Handle, UInt64, Bytes, retries? : Int) -> Unit
+pub async fn Client::write_text(Self, String, String, mode? : UInt) -> Handle
+pub fn Client::writer_for(Self, Handle, offset? : UInt64) -> RemoteWriter
+
+pub struct DirectoryCursor {
+  // private fields
+}
+pub fn DirectoryCursor::close(Self) -> Unit
+pub async fn DirectoryCursor::next(Self) -> DirectoryEntry?
 
 pub(all) struct DirectoryEntry {
   fileid : UInt64
@@ -86,8 +181,84 @@ pub(all) struct DirectoryPage {
   eof : Bool
 }
 
+pub(all) struct DiskUsage {
+  files : UInt64
+  directories : UInt64
+  symlinks : UInt64
+  special : UInt64
+  logical_bytes : UInt64
+  allocated_bytes : UInt64
+}
+
+pub(all) struct Export {
+  directory : Bytes
+  groups : Array[Bytes]
+}
+
+pub(all) struct FileComparison {
+  equal : Bool
+  compared_bytes : UInt64
+  first_difference : UInt64?
+}
+
+pub(all) struct FileSystemInfo {
+  read_max : UInt
+  read_preferred : UInt
+  read_multiple : UInt
+  write_max : UInt
+  write_preferred : UInt
+  write_multiple : UInt
+  directory_preferred : UInt
+  max_file_size : UInt64
+  time_delta : Timestamp
+  properties : UInt
+}
+pub fn FileSystemInfo::can_set_time(Self) -> Bool
+pub fn FileSystemInfo::supports_links(Self) -> Bool
+pub fn FileSystemInfo::supports_symlinks(Self) -> Bool
+
+pub(all) struct FileVersion {
+  fsid : UInt64
+  fileid : UInt64
+  size : UInt64
+  modified : Timestamp
+  changed : Timestamp
+}
+pub fn FileVersion::matches(Self, Self) -> Bool
+
 pub(all) struct Handle {
   bytes : Bytes
+}
+
+pub(all) struct HealthReport {
+  attributes : Attributes
+  granted_access : UInt
+  filesystem : FileSystemInfo
+  space : Space
+  paths : PathConfig
+  rpc : RpcStatistics
+  elapsed_ms : Int64
+}
+pub fn HealthReport::to_json(Self) -> Json
+
+pub(all) struct LocalTreeComparison {
+  differences : Array[TreeDifference]
+  compared_bytes : UInt64
+}
+
+pub(all) struct Metadata {
+  attributes : Attributes
+  device_major : UInt
+  device_minor : UInt
+  accessed : Timestamp
+  modified : Timestamp
+  changed : Timestamp
+}
+pub fn Metadata::version(Self) -> FileVersion
+
+pub(all) struct MountEntry {
+  host : Bytes
+  directory : Bytes
 }
 
 pub(all) struct Options {
@@ -111,10 +282,30 @@ pub(all) struct PathConfig {
   case_preserving : Bool
 }
 
+pub(all) struct ReadBenchmark {
+  rounds : Int
+  bytes : UInt64
+  elapsed_ms : Int64
+  fastest_ms : Int64
+  slowest_ms : Int64
+  rpc : RpcStatistics
+}
+pub fn ReadBenchmark::mebibytes_per_second(Self) -> Double
+
 pub(all) struct ReadResult {
   data : Bytes
   eof : Bool
 }
+
+pub struct RemoteWriter {
+  // private fields
+}
+pub fn RemoteWriter::close(Self) -> Unit
+pub fn RemoteWriter::position(Self) -> UInt64
+pub async fn RemoteWriter::write(Self, &@io.Data) -> Unit
+pub async fn RemoteWriter::write_once(Self, Bytes, offset~ : Int, len~ : Int) -> Int
+pub async fn RemoteWriter::write_reader(Self, &@io.Reader) -> Unit
+pub impl @io.Writer for RemoteWriter
 
 pub struct Rpc {
   // private fields
@@ -122,6 +313,23 @@ pub struct Rpc {
 pub async fn Rpc::call(Self, UInt, UInt, UInt, Array[Byte], modifying? : Bool) -> @moonxdr.Reader
 pub fn Rpc::close(Self) -> Unit
 pub async fn Rpc::connect(String, Int, options? : Options) -> Self
+pub fn Rpc::statistics(Self) -> RpcStatistics
+
+pub(all) struct RpcStatistics {
+  calls : UInt64
+  replies : UInt64
+  request_bytes : UInt64
+  response_bytes : UInt64
+  failures : UInt64
+}
+pub fn RpcStatistics::since(Self, Self) -> Self raise
+
+pub(all) struct ServiceMapping {
+  program : UInt
+  version : UInt
+  protocol : UInt
+  port : UInt
+}
 
 pub(all) struct Space {
   total_bytes : UInt64
@@ -133,11 +341,67 @@ pub(all) struct Space {
   invariant_seconds : UInt
 }
 
+pub(all) enum SpecialNode {
+  BlockDevice(UInt, UInt)
+  CharacterDevice(UInt, UInt)
+  UnixSocket
+  NamedPipe
+}
+
 pub(all) enum Stability {
   Unstable
   DataSync
   FileSync
 }
+
+pub(all) enum TimeUpdate {
+  KeepTime
+  ServerTime
+  ExactTime(Timestamp)
+}
+
+pub(all) struct Timestamp {
+  seconds : UInt
+  nanoseconds : UInt
+}
+pub fn Timestamp::validate(Self) -> Unit raise NfsError
+
+pub(all) struct TreeDifference {
+  relative : String
+  kind : TreeDifferenceKind
+}
+
+pub(all) enum TreeDifferenceKind {
+  MissingLeft
+  MissingRight
+  DifferentType
+  DifferentSize
+  DifferentContent
+  DifferentMode
+  DifferentLinkTarget
+}
+pub fn TreeDifferenceKind::name(Self) -> String
+
+pub(all) struct TreeEntry {
+  path : String
+  relative : String
+  depth : Int
+  handle : Handle
+  attributes : Attributes
+}
+
+pub(all) struct TreeTransfer {
+  files : Int
+  directories : Int
+  symlinks : Int
+  bytes : UInt64
+}
+
+pub struct TreeWalker {
+  // private fields
+}
+pub fn TreeWalker::close(Self) -> Unit
+pub async fn TreeWalker::next(Self) -> TreeEntry?
 
 pub(all) struct WriteResult {
   count : Int

@@ -130,6 +130,25 @@ async fn Client::invoke(
   modifying? : Bool = false,
 ) -> @xdr.Reader {
   let r = self.rpc.call(100003U, 3U, procedure, w.bytes(), modifying~)
-  require_success(r)
+  if modifying {
+    self.decode_mutation(r, require_success)
+  } else {
+    require_success(r)
+  }
   r
+}
+
+///|
+fn[T] Client::decode_mutation(
+  self : Client,
+  reader : @xdr.Reader,
+  decode : (@xdr.Reader) -> T raise,
+) -> T raise {
+  decode(reader) catch {
+    Status(_) as error => raise error
+    error => {
+      self.close()
+      raise OutcomeUnknown("mutation reply could not be decoded: \{error}")
+    }
+  }
 }

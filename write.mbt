@@ -40,11 +40,14 @@ pub async fn Client::write_at(
   w.write_uint(stability.wire())
   w.write_opaque(data.to_array())
   let r = self.invoke(7U, w, modifying=true)
-  read_wcc(r)
-  let count = r.read_uint()
-  let level = r.read_uint()
-  let verifier = Bytes::from_array(r.read_fixed(8))
-  r.finish()
+  let (count, level, verifier) = self.decode_mutation(r, reader => {
+    read_wcc(reader)
+    let count = reader.read_uint()
+    let level = reader.read_uint()
+    let verifier = Bytes::from_array(reader.read_fixed(8))
+    reader.finish()
+    (count, level, verifier)
+  })
   if count > data.length().reinterpret_as_uint() ||
     (count == 0U && data.length() > 0) ||
     level > 2U ||
@@ -79,10 +82,12 @@ pub async fn Client::commit(
   w.write_uhyper(offset)
   w.write_uint(count)
   let r = self.invoke(21U, w, modifying=true)
-  read_wcc(r)
-  let verifier = Bytes::from_array(r.read_fixed(8))
-  r.finish()
-  verifier
+  self.decode_mutation(r, reader => {
+    read_wcc(reader)
+    let verifier = Bytes::from_array(reader.read_fixed(8))
+    reader.finish()
+    verifier
+  })
 }
 
 ///|

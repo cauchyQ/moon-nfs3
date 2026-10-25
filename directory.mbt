@@ -65,36 +65,11 @@ pub async fn Client::list_dir(
   path : String,
   plus? : Bool = true,
 ) -> Array[DirectoryEntry] {
-  let handle = self.resolve(path)
+  let cursor = self.open_directory(path, plus~)
+  defer cursor.close()
   let result : Array[DirectoryEntry] = []
-  let seen : Map[UInt64, Bool] = Map([])
-  let mut cookie = 0UL
-  let mut verifier = b"\x00\x00\x00\x00\x00\x00\x00\x00"
-  while true {
-    let page = self.read_directory(handle, cookie~, verifier~, plus~)
-    if cookie != 0UL && page.verifier != verifier {
-      raise ProtocolError("directory verifier changed during traversal")
-    }
-    if page.entries.length() > self.options.max_entries - result.length() {
-      raise ProtocolError("directory traversal exceeds entry budget")
-    }
-    for entry in page.entries {
-      result.push(entry)
-    }
-    if page.eof {
-      return result
-    }
-    if page.entries.length() == 0 {
-      raise ProtocolError("directory pagination made no progress")
-    }
-    let next = page.entries[page.entries.length() - 1].cookie
-    if next == cookie || seen.contains(next) {
-      raise ProtocolError("directory cookie loop")
-    }
-    seen[next] = true
-    cookie = next
-    verifier = page.verifier
-  } nobreak {
-    raise ProtocolError("incomplete directory")
+  while cursor.next() is Some(entry) {
+    result.push(entry)
   }
+  result
 }

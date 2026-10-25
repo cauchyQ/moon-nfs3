@@ -89,24 +89,9 @@ async fn Client::resolve_attributes(
 ///|
 /// Sets transfer block sizes using FSINFO; no file data is cached.
 pub async fn Client::negotiate(self : Client) -> Unit {
-  let w = @xdr.Writer::new()
-  put_handle(w, self.root)
-  let r = self.invoke(19U, w)
-  ignore(post_attributes(r))
-  let rtmax = r.read_uint()
-  ignore(r.read_uint()) // rtpref
-  ignore(r.read_uint()) // rtmult is a performance hint, not an alignment constraint
-  let wtmax = r.read_uint()
-  ignore(r.read_uint())
-  ignore(r.read_uint())
-  ignore(r.read_uint()) // dtpref
-  ignore(r.read_uhyper()) // maxfilesize
-  ignore(read_time(r))
-  ignore(r.read_uint()) // properties
-  r.finish()
-  if rtmax == 0U || wtmax == 0U {
-    raise ProtocolError("zero FSINFO transfer maximum")
-  }
+  let info = self.fsinfo()
+  let rtmax = info.read_max
+  let wtmax = info.write_max
   self.read_size = if rtmax < self.options.block_size.reinterpret_as_uint() {
     rtmax.reinterpret_as_int()
   } else {
