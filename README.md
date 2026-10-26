@@ -6,6 +6,16 @@ MoonNFS3 是用 MoonBit 实现的 NFSv3/TCP 客户端，可以直接访问服务
 
 NFS 客户端和连接管理逻辑由本项目实现；XDR 编解码与 RPC 线格式使用 [`kekeshuo/moonxdr@0.2.0`](https://github.com/kekeshuo/moonxdr)，网络与文件异步 I/O 使用 `moonbitlang/async@0.22.1`。
 
+## 从 MoonCake 安装
+
+在现有 MoonBit 项目中添加依赖：
+
+```sh
+moon add cauchyQ/moon-nfs3@0.1.0
+```
+
+在使用该库的 `moon.pkg` 中导入 `"cauchyQ/moon-nfs3" @nfs`，具体用法见下文“作为库使用”。
+
 ## 从源码运行
 
 ```sh
@@ -17,7 +27,7 @@ moon test --deny-warn
 moon run cmd/main -- --help
 ```
 
-当前通过源码使用，尚未发布到 MoonCake。项目默认使用 `wasm` 后端，CI 同时检查 Linux `native` 后端。
+项目默认使用 `wasm` 后端，CI 同时检查 Linux `native` 后端。
 
 本地开发和 CI 固定使用编译器 `v0.10.14+7d59c7ec9`，以避免较新格式化工具迁移语法或整数类型名称所带来的差异。Linux 下可按以下方式安装对应工具链：
 
